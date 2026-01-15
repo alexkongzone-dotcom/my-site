@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Beyond Scales | Strategic Topography</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@100;300;400;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #ffffff;
+            --text-main: #000000;
+            --accent-color: #000000;
+            --card-bg: #f5f5f5;
+            --line-color: rgba(0, 0, 0, 0.08);
+            --contour-color: rgba(0, 0, 0, 0.04);
+            --font-display: 'Inter', sans-serif;
+            --transition-smooth: all 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        
+        [data-theme='dark'] {
+            --bg: #0a0a0a;
+            --text-main: #ffffff;
+            --accent-color: #ffffff;
+            --card-bg: #1a1a1a;
+            --line-color: rgba(255, 255, 255, 0.1);
+            --contour-color: rgba(255, 255, 255, 0.05);
+        }
+        
+        body, html {
+            margin: 0; padding: 0;
+            background-color: var(--bg);
+            font-family: var(--font-display);
+            color: var(--text-main);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+            scroll-behavior: smooth;
+            transition: background-color 0.5s ease;
+        }
+
+        #global-canvas {
+            position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1; pointer-events: none;
+        }
+
+        #logic-canvas {
+            position: absolute; top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 25; pointer-events: none;
+        }
+
+        .hero-section {
+            width: 100vw; height: 100vh;
+            display: flex; align-items: flex-end;
+            padding: 0 8vw 8vh 8vw; position: relative;
+            z-index: 10;
+        }
+
+        .hero-title {
+            font-size: clamp(3.5rem, 12vw, 8rem);
+            font-weight: 900; line-height: 0.85;
+            letter-spacing: -0.05em; text-transform: uppercase;
+        }
+
+        .logic-section {
+            width: 100vw; min-height: 100vh;
+            padding: 120px 8vw; position: relative;
+            z-index: 20; display: flex; flex-direction: column;
+            justify-content: center;
+        }
+
+        .logic-visualizer {
+            position: relative;
+            width: 100%; height: 450px;
+            display: flex; align-items: center; justify-content: center;
+            margin-top: 40px;
+            perspective: 1000px;
+        }
+
+        .strategy-sphere {
+            position: absolute;
+            width: clamp(80px, 12vw, 150px);
+            aspect-ratio: 1;
+            border-radius: 50%;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            cursor: pointer;
+            transition: var(--transition-smooth);
+            background: var(--bg);
+            border: 1px solid var(--text-main);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.03);
+            z-index: 30;
+            user-select: none;
+        }
+
+        .strategy-sphere:hover {
+            background: var(--text-main);
+            color: var(--bg);
+            transform: scale(1.08) translateZ(30px) !important;
+            z-index: 40;
+        }
+
+        .sphere-label { font-size: 8px; font-weight: 900; letter-spacing: 0.2em; text-transform: uppercase; pointer-events: none;}
+        .sphere-value { font-size: 20px; font-weight: 200; margin-top: 4px; pointer-events: none;}
+
+        .stats-overlay {
+            width: 100%; display: flex; justify-content: space-between;
+            padding-top: 30px; border-top: 1px solid var(--line-color);
+            gap: 20px; margin-top: 40px;
+        }
+
+        .stat-item { flex: 1; }
+        .stat-bar { height: 1px; background: var(--line-color); width: 100%; margin-top: 10px; position: relative; overflow: hidden; }
+        
+        .stat-fill { 
+            height: 100%; 
+            background-color: var(--text-main); 
+            width: 0%; 
+            transition: width 1.2s cubic-bezier(0.16, 1, 0.3, 1) !important; 
+            display: block;
+        }
+
+        .case-info {
+            margin-top: 60px;
+            max-width: 800px;
+            transition: opacity 0.5s ease;
+        }
+        
+        .case-tag {
+            display: inline-block;
+            font-size: 9px; font-weight: 900; letter-spacing: 0.3em;
+            text-transform: uppercase; padding: 4px 12px;
+            background: var(--text-main); color: var(--bg);
+            margin-bottom: 16px;
+        }
+
+        .case-title {
+            font-size: 24px; font-weight: 700; margin-bottom: 12px;
+        }
+
+        .case-desc {
+            font-size: 14px; color: #888; line-height: 1.8; font-weight: 300;
+        }
+
+        .btn-scale {
+            padding: 10px 20px;
+            border: 1px solid var(--line-color);
+            font-size: 9px;
+            font-weight: 900;
+            text-transform: uppercase;
+            letter-spacing: 0.2em;
+            transition: all 0.4s ease;
+            color: #888;
+            background: transparent;
+            cursor: pointer;
+        }
+        
+        .btn-scale:hover {
+            border-color: var(--text-main);
+            color: var(--text-main);
+        }
+
+        .btn-scale.active {
+            border-color: var(--text-main);
+            background: var(--text-main);
+            color: var(--bg);
+        }
+
+        /* 项目经历板块优化 */
+        .project-section {
+            width: 100vw; padding: 120px 8vw;
+            position: relative; z-index: 20;
+        }
+
+        .project-item {
+            display: flex; flex-direction: column;
+            margin-bottom: 15vh;
+        }
+
+        @media (min-width: 1024px) {
+            .project-item { flex-direction: row; gap: 80px; align-items: flex-start; }
+            .project-media { flex: 1.2; }
+            .project-content { flex: 0.8; position: sticky; top: 120px; }
+        }
+
+        .project-media {
+            position: relative; overflow: hidden;
+            background: var(--card-bg);
+            aspect-ratio: 16/10;
+            margin-bottom: 30px;
+            border: 1px solid var(--line-color);
+        }
+
+        .project-media img {
+            width: 100%; height: 100%; object-fit: cover;
+            filter: grayscale(100%); transition: var(--transition-smooth);
+            display: block;
+        }
+
+        /* 鼠标悬停时图片恢复彩色并轻微放大 */
+        .project-media:hover img {
+            filter: grayscale(0%);
+            transform: scale(1.03);
+        }
+
+        /* 当没有图片时的样式占位符 */
+        .img-placeholder {
+            position: absolute; inset: 0;
+            display: flex; flex-direction: column;
+            align-items: center; justify-content: center;
+            background: var(--card-bg);
+            color: var(--text-main);
+            opacity: 0.3;
+        }
+
+        .project-year {
+            font-size: 10px; font-weight: 900; color: #888;
+            margin-bottom: 8px; display: block;
+        }
+
+        .project-role {
+            font-size: 11px; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.1em; margin-bottom: 20px; display: block;
+        }
+
+        .impact-section {
+            width: 100vw; min-height: 100vh;
+            padding: 120px 8vw; position: relative;
+            z-index: 20;
+        }
+
+        .impact-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 40px;
+            margin-top: 80px;
+        }
+
+        .impact-card {
+            border-bottom: 1px solid var(--line-color);
+            padding-bottom: 40px;
+            transition: var(--transition-smooth);
+        }
+
+        .impact-card:hover { border-color: var(--text-main); }
+
+        .impact-number {
+            font-size: 64px; font-weight: 100; letter-spacing: -0.02em;
+            line-height: 1; margin-bottom: 20px;
+        }
+
+        .impact-label {
+            font-size: 10px; font-weight: 900; text-transform: uppercase;
+            letter-spacing: 0.3em; color: #888; margin-bottom: 24px; display: block;
+        }
+
+        .impact-detail { font-size: 14px; font-weight: 300; line-height: 1.6; color: var(--text-main); }
+
+        .theme-switch {
+            position: fixed; bottom: 40px; right: 40px;
+            z-index: 100; font-size: 10px; font-weight: 900;
+            cursor: pointer; opacity: 0.4;
+            letter-spacing: 0.1em; padding: 10px;
+        }
+    </style>
+</head>
+<body data-theme="light">
+
+    <canvas id="global-canvas"></canvas>
+
+    <header class="fixed top-0 left-0 w-full p-8 md:p-12 flex justify-between items-start z-[100] mix-blend-difference text-white pointer-events-none">
+        <div class="text-[10px] font-black tracking-[0.3em] uppercase pointer-events-auto">Kong Linghang / Strategist</div>
+        <div class="text-[10px] font-bold tracking-widest text-right opacity-50 hidden md:block">LOGIC ARCHITECTURE<br>XL/L/M/S</div>
+    </header>
+
+    <section class="hero-section">
+        <div class="hero-content">
+            <div class="text-[10px] font-black text-zinc-400 mb-4 tracking-[0.5em] uppercase">Visualizing Strategic Topography</div>
+            <h1 class="hero-title">Beyond<br>Scales.</h1>
+        </div>
+    </section>
+
+    <!-- 逻辑模型板块 -->
+    <section class="logic-section">
+        <div class="max-w-xl">
+            <h2 class="text-4xl font-light mb-6">拓扑等高线模型</h2>
+            <p class="text-sm text-zinc-400 leading-relaxed font-light">
+                战略并非平面的布局，而是动态的地形。背景的流体等高线代表了波动的市场环境，而球体间的拓扑连线则揭示了在不确定性中确定的逻辑路径。
+            </p>
+        </div>
+
+        <div class="logic-visualizer" id="viz-container">
+            <canvas id="logic-canvas"></canvas>
+
+            <div class="strategy-sphere" id="sphere-0" style="top: 15%; right: 20%;" onclick="updateScale('XL')">
+                <span class="sphere-label">Ecological</span>
+                <span class="sphere-value" id="val-0">--</span>
+            </div>
+            
+            <div class="strategy-sphere" id="sphere-1" style="top: 5%; left: 20%;" onclick="updateScale('L')">
+                <span class="sphere-label">Commercial</span>
+                <span class="sphere-value" id="val-1">--</span>
+            </div>
+
+            <div class="strategy-sphere" id="sphere-2" style="bottom: 15%; left: 20%;" onclick="updateScale('M')">
+                <span class="sphere-label">Network</span>
+                <span class="sphere-value" id="val-2">--</span>
+            </div>
+
+            <div class="strategy-sphere" id="sphere-3" style="bottom: 5%; right: 20%;" onclick="updateScale('S')">
+                <span class="sphere-label">Human</span>
+                <span class="sphere-value" id="val-3">--</span>
+            </div>
+        </div>
+
+        <div class="stats-overlay">
+            <div class="stat-item">
+                <div class="flex justify-between text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                    <span>Resilience (XL)</span>
+                    <span id="stat-val-0" class="text-current">0%</span>
+                </div>
+                <div class="stat-bar"><div class="stat-fill" id="fill-0"></div></div>
+            </div>
+            <div class="stat-item">
+                <div class="flex justify-between text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                    <span>ROI (L)</span>
+                    <span id="stat-val-1" class="text-current">0%</span>
+                </div>
+                <div class="stat-bar"><div class="stat-fill" id="fill-1"></div></div>
+            </div>
+            <div class="stat-item">
+                <div class="flex justify-between text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                    <span>Social Link (M)</span>
+                    <span id="stat-val-2" class="text-current">0%</span>
+                </div>
+                <div class="stat-bar"><div class="stat-fill" id="fill-2"></div></div>
+            </div>
+            <div class="stat-item">
+                <div class="flex justify-between text-[9px] font-black uppercase tracking-widest text-zinc-400">
+                    <span>Human Touch (S)</span>
+                    <span id="stat-val-3" class="text-current">0%</span>
+                </div>
+                <div class="stat-bar"><div class="stat-fill" id="fill-3"></div></div>
+            </div>
+        </div>
+
+        <div class="case-info" id="case-panel">
+            <span class="case-tag" id="case-tag">Case Study</span>
+            <h3 class="case-title" id="case-title">正在加载...</h3>
+            <p class="case-desc" id="case-desc">正在同步战略演算数据...</p>
+        </div>
+
+        <div class="mt-20 flex flex-wrap gap-4">
+            <button class="btn-scale" data-scale="XL" onclick="updateScale('XL')">XL: Urban Base</button>
+            <button class="btn-scale" data-scale="L" onclick="updateScale('L')">L: Space Engine</button>
+            <button class="btn-scale" data-scale="M" onclick="updateScale('M')">M: Community Net</button>
+            <button class="btn-scale" data-scale="S" onclick="updateScale('S')">S: Touch Point</button>
+        </div>
+    </section>
+
+    <!-- 图文项目经历板块 -->
+    <section class="project-section">
+        <div class="max-w-xl mb-24">
+            <h2 class="text-4xl font-light mb-6">项目选萃</h2>
+            <p class="text-sm text-zinc-400 leading-relaxed font-light">
+                从宏观蓝图到微观触点，每一项研究都致力于寻找复杂系统中的最优平衡点。
+            </p>
+        </div>
+
+        <!-- 项目 01 -->
+        <div class="project-item">
+            <div class="project-media">
+                <!-- 插入方法：将下面的 src 替换为你的图片路径 -->
+                <img src="" onerror="this.style.display='none'">
+                <div class="img-placeholder">
+                    <span class="text-[10px] tracking-[0.3em] font-black mb-2">PROJECT MEDIA</span>
+                    <span class="text-[8px] opacity-60">1600 x 1000 PX</span>
+                </div>
+            </div>
+            <div class="project-content">
+                <span class="project-year">2023 - PRESENT</span>
+                <span class="project-role">Lead Strategist</span>
+                <h3 class="text-2xl font-bold mb-6 italic tracking-tight">长三角韧性城市空间骨架研究</h3>
+                <div class="space-y-6 text-sm font-light leading-relaxed text-zinc-500">
+                    <p>
+                        <strong class="text-zinc-900 block mb-2 font-bold uppercase text-[10px] tracking-widest">核心挑战</strong>
+                        在极高密度的城市群中，如何在维持开发效率的同时，构建应对极端气候的生态防御系统。
+                    </p>
+                    <p>
+                        <strong class="text-zinc-900 block mb-2 font-bold uppercase text-[10px] tracking-widest">战略路径</strong>
+                        引入“动态地形”模拟算法，确立了三级生态廊道，将城市硬质边界转化为可渗透的绿色基础设施。
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 项目 02 -->
+        <div class="project-item">
+            <div class="project-media">
+                <!-- 插入方法：将下面的 src 替换为你的图片路径 -->
+                <img src="" onerror="this.style.display='none'">
+                <div class="img-placeholder">
+                    <span class="text-[10px] tracking-[0.3em] font-black mb-2">PROJECT MEDIA</span>
+                    <span class="text-[8px] opacity-60">1600 x 1000 PX</span>
+                </div>
+            </div>
+            <div class="project-content">
+                <span class="project-year">2022</span>
+                <span class="project-role">Strategic Consultant</span>
+                <h3 class="text-2xl font-bold mb-6 italic tracking-tight">垂直社区：高层住宅与商业混合体优化</h3>
+                <div class="space-y-6 text-sm font-light leading-relaxed text-zinc-500">
+                    <p>
+                        <strong class="text-zinc-900 block mb-2 font-bold uppercase text-[10px] tracking-widest">核心挑战</strong>
+                        解决超高层综合体中“垂直孤岛”效应，提升公共空间的使用率与资产价值。
+                    </p>
+                    <p>
+                        <strong class="text-zinc-900 block mb-2 font-bold uppercase text-[10px] tracking-widest">战略路径</strong>
+                        重组空中大堂的社交逻辑，通过“社会连线”模型量化空间的可达性，使公共区域租金收益提升了 28%。
+                    </p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- 工作成果板块 -->
+    <section class="impact-section">
+        <div class="max-w-xl">
+            <h2 class="text-4xl font-light mb-6">成果实证</h2>
+            <p class="text-sm text-zinc-400 leading-relaxed font-light">
+                战略的价值最终体现在可被验证的数据与可见的影响力中。
+            </p>
+        </div>
+
+        <div class="impact-grid">
+            <div class="impact-card">
+                <span class="impact-label">XL - Efficiency</span>
+                <div class="impact-number" data-target="40">0%</div>
+                <p class="impact-detail">在 XL 尺度城市规划中，数字化模拟辅助决策，将初期分析周期缩短了 40%。</p>
+            </div>
+            <div class="impact-card">
+                <span class="impact-label">L - ROI Impact</span>
+                <div class="impact-number" data-target="215">0%</div>
+                <p class="impact-detail">在 L 尺度 TOD 项目中，通过动线重组，预测资产估值溢价提升了 215%。</p>
+            </div>
+            <div class="impact-card">
+                <span class="impact-label">M - Social Link</span>
+                <div class="impact-number" data-target="12">0</div>
+                <p class="impact-detail">在 M 尺度社区更新中，建立 12 个关键社交触点，人流增长 30% 以上。</p>
+            </div>
+            <div class="impact-card">
+                <span class="impact-label">S - Conversion</span>
+                <div class="impact-number" data-target="85">0%</div>
+                <p class="impact-detail">在 S 尺度品牌触点设计中，精细化体验管理使留存率提升 85%。</p>
+            </div>
+        </div>
+    </section>
+
+    <div class="theme-switch" onclick="toggleTheme()">DARK MODE</div>
+
+    <script>
+        function toggleTheme() {
+            const b = document.body;
+            const current = b.getAttribute('data-theme');
+            const next = current === 'dark' ? 'light' : 'dark';
+            b.setAttribute('data-theme', next);
+            document.querySelector('.theme-switch').innerText = next === 'dark' ? 'LIGHT MODE' : 'DARK MODE';
+        }
+
+        const globalCanvas = document.getElementById('global-canvas');
+        const gCtx = globalCanvas.getContext('2d');
+        const logicCanvas = document.getElementById('logic-canvas');
+        const lCtx = logicCanvas.getContext('2d');
+        
+        let canvasW, canvasH, animTime = 0;
+        let spherePos = [];
+        let currentValues = [0, 0, 0, 0];
+
+        function handleResize() {
+            canvasW = window.innerWidth; 
+            canvasH = window.innerHeight;
+            [globalCanvas, logicCanvas].forEach(c => {
+                c.width = canvasW * devicePixelRatio; 
+                c.height = canvasH * devicePixelRatio;
+                const ctx = c.getContext('2d');
+                ctx.setTransform(1, 0, 0, 1, 0, 0);
+                ctx.scale(devicePixelRatio, devicePixelRatio);
+                c.style.width = canvasW + 'px';
+                c.style.height = canvasH + 'px';
+            });
+            updateSpherePositions();
+        }
+
+        function updateSpherePositions() {
+            const container = document.getElementById('viz-container').getBoundingClientRect();
+            spherePos = [];
+            for(let i=0; i<4; i++) {
+                const el = document.getElementById(`sphere-${i}`);
+                if(el) {
+                    const rect = el.getBoundingClientRect();
+                    spherePos.push({
+                        x: rect.left - container.left + rect.width/2,
+                        y: rect.top - container.top + rect.height/2
+                    });
+                }
+            }
+        }
+
+        window.addEventListener('resize', handleResize); 
+        handleResize();
+
+        function drawContours() {
+            gCtx.clearRect(0, 0, canvasW, canvasH);
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            gCtx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.05)' : 'rgba(0, 0, 0, 0.04)';
+            gCtx.lineWidth = 0.8;
+            const spacing = 45;
+            const amplitude = 50;
+            for (let i = -10; i < (canvasH / spacing) + 10; i++) {
+                gCtx.beginPath();
+                for (let x = 0; x <= canvasW; x += 20) {
+                    const wave1 = Math.sin(x * 0.002 + animTime * 0.3 + i * 0.5) * amplitude;
+                    const wave2 = Math.sin(x * 0.005 - animTime * 0.5) * (amplitude * 0.3);
+                    const y = (i * spacing) + wave1 + wave2;
+                    if (x === 0) gCtx.moveTo(x, y);
+                    else gCtx.lineTo(x, y);
+                }
+                gCtx.stroke();
+            }
+        }
+
+        function animate() {
+            animTime += 0.015;
+            drawContours();
+            const vizRect = document.getElementById('viz-container').getBoundingClientRect();
+            lCtx.clearRect(0, 0, vizRect.width, vizRect.height);
+            const isDark = document.body.getAttribute('data-theme') === 'dark';
+            const accentColor = isDark ? '255, 255, 255' : '0, 0, 0';
+            const connections = [[0,1], [0,2], [1,3], [2,3], [0,3], [1,2]];
+            connections.forEach(([a, b]) => {
+                const p1 = spherePos[a]; const p2 = spherePos[b];
+                if(!p1 || !p2) return;
+                const strength = (currentValues[a] + currentValues[b]) / 200;
+                lCtx.beginPath();
+                lCtx.moveTo(p1.x, p1.y); lCtx.lineTo(p2.x, p2.y);
+                lCtx.strokeStyle = `rgba(${accentColor}, ${0.03 + strength * 0.35})`;
+                lCtx.lineWidth = 0.5 + strength * 2;
+                lCtx.stroke();
+                const pPos = (animTime * 0.15) % 1;
+                lCtx.beginPath();
+                lCtx.arc(p1.x + (p2.x - p1.x) * pPos, p1.y + (p2.y - p1.y) * pPos, 1.2 * strength + 0.5, 0, Math.PI * 2);
+                lCtx.fillStyle = `rgba(${accentColor}, ${0.1 + strength * 0.8})`;
+                lCtx.fill();
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        const scalesData = {
+            'XL': {
+                values: [80, 10, 5, 5],
+                title: "城市韧性基底：某三角洲生态韧性总体规划",
+                tag: "XL: Urban Strategy",
+                desc: "在宏观城市尺度，策略核心在于确立韧性基础设施。本项目通过建立多层级湿地过滤系统与海绵城市骨架，实现了生态修复与城市开发的动态平衡。"
+            },
+            'L': {
+                values: [10, 70, 10, 10],
+                title: "资产价值引擎：超大型TOD混合体商业策划",
+                tag: "L: Space Engine",
+                desc: "侧重于商业回报与空间效率。通过对垂直动线的精细化模拟与无缝耦合，确保资产在长期持有中的ROI表现与租户吸引力。"
+            },
+            'M': {
+                values: [15, 15, 60, 10],
+                title: "社区价值网络：旧工业区微更新策略",
+                tag: "M: Community Net",
+                desc: "定位于社会链接的密度与品质。通过织补式的空间干预，引入社区共享中心，激活邻里间的社会网络，实现资产社会化转型。"
+            },
+            'S': {
+                values: [5, 5, 10, 80],
+                title: "体验触点设计：新零售品牌体验中心旗舰店",
+                tag: "S: Human Touch",
+                desc: "聚焦于人尺度下的情感交互。通过对材质感官与数字化交互界面的打磨，将商业策略转化为可感知的细节记忆。"
+            }
+        };
+
+        window.updateScale = function(sc) {
+            const data = scalesData[sc];
+            if (!data) return;
+            currentValues = data.values;
+            document.querySelectorAll('.btn-scale').forEach(btn => {
+                btn.classList.toggle('active', btn.getAttribute('data-scale') === sc);
+            });
+            const panel = document.getElementById('case-panel');
+            panel.style.opacity = 0;
+            setTimeout(() => {
+                document.getElementById('case-tag').innerText = data.tag;
+                document.getElementById('case-title').innerText = data.title;
+                document.getElementById('case-desc').innerText = data.desc;
+                panel.style.opacity = 1;
+            }, 300);
+            currentValues.forEach((val, i) => {
+                document.getElementById(`stat-val-${i}`).innerText = val + '%';
+                document.getElementById(`val-${i}`).innerText = val + '%';
+                const fillElem = document.getElementById(`fill-${i}`);
+                if (fillElem) fillElem.style.width = val + '%';
+                const sphere = document.getElementById(`sphere-${i}`);
+                if (sphere) {
+                    const intensity = val / 100;
+                    sphere.style.transform = `scale(${0.65 + intensity * 0.8})`;
+                    sphere.style.opacity = 0.4 + intensity * 0.6;
+                }
+            });
+            setTimeout(updateSpherePositions, 300);
+        };
+
+        function initImpactAnimation() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const target = entry.target;
+                        const targetValue = parseInt(target.getAttribute('data-target'));
+                        let current = 0; const duration = 2000; const startTime = performance.now();
+                        function update(currentTime) {
+                            const elapsed = currentTime - startTime;
+                            const progress = Math.min(elapsed / duration, 1);
+                            const easeProgress = 1 - Math.pow(2, -10 * progress);
+                            current = Math.floor(easeProgress * targetValue);
+                            target.innerText = current + (target.innerText.includes('%') || targetValue > 20 ? '%' : '');
+                            if (progress < 1) requestAnimationFrame(update);
+                            else target.innerText = targetValue + (targetValue > 20 ? '%' : '');
+                        }
+                        requestAnimationFrame(update); observer.unobserve(target);
+                    }
+                });
+            }, { threshold: 0.5 });
+            document.querySelectorAll('.impact-number').forEach(num => observer.observe(num));
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            handleResize(); initImpactAnimation();
+            setTimeout(() => { updateSpherePositions(); window.updateScale('XL'); }, 200);
+        });
+        window.addEventListener('scroll', updateSpherePositions);
+    </script>
+</body>
+</html>
